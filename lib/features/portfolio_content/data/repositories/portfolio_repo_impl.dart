@@ -1,0 +1,329 @@
+import 'package:injectable/injectable.dart';
+
+import '../../../../core/common/data_result.dart';
+import '../../domain/entities/certificate.dart';
+import '../../domain/entities/custom_section_item.dart';
+import '../../domain/entities/personal_project.dart';
+import '../../domain/entities/pricing_add_on.dart';
+import '../../domain/entities/pricing_package.dart';
+import '../../domain/entities/section_definition.dart';
+import '../../domain/entities/site_content.dart';
+import '../../domain/entities/skill_group_entity.dart';
+import '../../domain/entities/tech_badge_entity.dart';
+import '../../domain/entities/work_history_entry.dart';
+import '../../domain/repositories/portfolio_repo.dart';
+import '../data_sources/portfolio_local_data_source.dart';
+
+@LazySingleton(as: PortfolioRepo)
+class PortfolioRepoImpl implements PortfolioRepo {
+  PortfolioRepoImpl(this._local);
+
+  final PortfolioLocalDataSource _local;
+
+  /// Every read/write goes through here so a storage failure surfaces as a
+  /// [Fail] instead of an unhandled exception inside a cubit.
+  Future<DataResult<T>> _guard<T>(
+    Future<T> Function() action,
+    String failureMessage,
+  ) async {
+    try {
+      return Success<T>(await action());
+    } on Object catch (error, stackTrace) {
+      return Fail<T>(failureMessage, error, stackTrace);
+    }
+  }
+
+  List<T> _sorted<T>(List<T> items, int Function(T) orderOf) {
+    final copy = List<T>.of(items)
+      ..sort((a, b) => orderOf(a).compareTo(orderOf(b)));
+    return copy;
+  }
+
+  /// Replaces the entry with a matching id, or appends it at the end.
+  List<T> _upserted<T>(List<T> items, T value, String Function(T) idOf) {
+    final copy = List<T>.of(items);
+    final index = copy.indexWhere((e) => idOf(e) == idOf(value));
+    if (index == -1) {
+      copy.add(value);
+    } else {
+      copy[index] = value;
+    }
+    return copy;
+  }
+
+  // Projects ------------------------------------------------------------------
+
+  @override
+  Future<DataResult<List<PersonalProject>>> getProjects() => _guard(
+    () async => _sorted(_local.getProjects(), (p) => p.order),
+    'Could not read projects from local storage',
+  );
+
+  @override
+  Future<DataResult<List<PersonalProject>>> upsertProject(
+    PersonalProject project,
+  ) => _guard(() async {
+    final next = _upserted(_local.getProjects(), project, (p) => p.id);
+    await _local.saveProjects(next);
+    return _sorted(next, (p) => p.order);
+  }, 'Could not save the project');
+
+  @override
+  Future<DataResult<List<PersonalProject>>> deleteProject(String id) =>
+      _guard(() async {
+        final next = _local.getProjects().where((p) => p.id != id).toList();
+        await _local.saveProjects(next);
+        return _sorted(next, (p) => p.order);
+      }, 'Could not delete the project');
+
+  // Certificates --------------------------------------------------------------
+
+  @override
+  Future<DataResult<List<Certificate>>> getCertificates() => _guard(
+    () async => _sorted(_local.getCertificates(), (c) => c.order),
+    'Could not read certificates from local storage',
+  );
+
+  @override
+  Future<DataResult<List<Certificate>>> upsertCertificate(
+    Certificate certificate,
+  ) => _guard(() async {
+    final next = _upserted(_local.getCertificates(), certificate, (c) => c.id);
+    await _local.saveCertificates(next);
+    return _sorted(next, (c) => c.order);
+  }, 'Could not save the certificate');
+
+  @override
+  Future<DataResult<List<Certificate>>> deleteCertificate(String id) =>
+      _guard(() async {
+        final next = _local.getCertificates().where((c) => c.id != id).toList();
+        await _local.saveCertificates(next);
+        return _sorted(next, (c) => c.order);
+      }, 'Could not delete the certificate');
+
+  // Work history --------------------------------------------------------------
+
+  @override
+  Future<DataResult<List<WorkHistoryEntry>>> getWorkHistory() => _guard(
+    () async => _sorted(_local.getWorkHistory(), (e) => e.order),
+    'Could not read work history from local storage',
+  );
+
+  @override
+  Future<DataResult<List<WorkHistoryEntry>>> upsertWorkHistory(
+    WorkHistoryEntry entry,
+  ) => _guard(() async {
+    final next = _upserted(_local.getWorkHistory(), entry, (e) => e.id);
+    await _local.saveWorkHistory(next);
+    return _sorted(next, (e) => e.order);
+  }, 'Could not save the experience entry');
+
+  @override
+  Future<DataResult<List<WorkHistoryEntry>>> deleteWorkHistory(String id) =>
+      _guard(() async {
+        final next = _local.getWorkHistory().where((e) => e.id != id).toList();
+        await _local.saveWorkHistory(next);
+        return _sorted(next, (e) => e.order);
+      }, 'Could not delete the experience entry');
+
+  // Pricing -------------------------------------------------------------------
+
+  @override
+  Future<DataResult<List<PricingPackage>>> getPricingPackages() => _guard(
+    () async => _sorted(_local.getPricingPackages(), (p) => p.order),
+    'Could not read pricing packages from local storage',
+  );
+
+  @override
+  Future<DataResult<List<PricingPackage>>> upsertPricingPackage(
+    PricingPackage package,
+  ) => _guard(() async {
+    final next = _upserted(_local.getPricingPackages(), package, (p) => p.id);
+    await _local.savePricingPackages(next);
+    return _sorted(next, (p) => p.order);
+  }, 'Could not save the package');
+
+  @override
+  Future<DataResult<List<PricingPackage>>> deletePricingPackage(String id) =>
+      _guard(() async {
+        final next = _local
+            .getPricingPackages()
+            .where((p) => p.id != id)
+            .toList();
+        await _local.savePricingPackages(next);
+        return _sorted(next, (p) => p.order);
+      }, 'Could not delete the package');
+
+  @override
+  Future<DataResult<List<PricingAddOn>>> getPricingAddOns() => _guard(
+    () async => _sorted(_local.getPricingAddOns(), (a) => a.order),
+    'Could not read add-ons from local storage',
+  );
+
+  @override
+  Future<DataResult<List<PricingAddOn>>> upsertPricingAddOn(
+    PricingAddOn addOn,
+  ) => _guard(() async {
+    final next = _upserted(_local.getPricingAddOns(), addOn, (a) => a.id);
+    await _local.savePricingAddOns(next);
+    return _sorted(next, (a) => a.order);
+  }, 'Could not save the add-on');
+
+  @override
+  Future<DataResult<List<PricingAddOn>>> deletePricingAddOn(String id) =>
+      _guard(() async {
+        final next = _local
+            .getPricingAddOns()
+            .where((a) => a.id != id)
+            .toList();
+        await _local.savePricingAddOns(next);
+        return _sorted(next, (a) => a.order);
+      }, 'Could not delete the add-on');
+
+  // Site-wide content ---------------------------------------------------------
+
+  @override
+  Future<DataResult<SiteContent>> getSiteContent() => _guard(
+    () async => _local.getSiteContent(),
+    'Could not read the site content from local storage',
+  );
+
+  @override
+  Future<DataResult<SiteContent>> saveSiteContent(SiteContent content) =>
+      _guard(() async {
+        await _local.saveSiteContent(content);
+        return content;
+      }, 'Could not save the site content');
+
+  @override
+  Future<DataResult<List<SkillGroupEntity>>> getSkillGroups() => _guard(
+    () async => _sorted(_local.getSkillGroups(), (g) => g.order),
+    'Could not read skill groups from local storage',
+  );
+
+  @override
+  Future<DataResult<List<SkillGroupEntity>>> upsertSkillGroup(
+    SkillGroupEntity group,
+  ) => _guard(() async {
+    final next = _upserted(_local.getSkillGroups(), group, (g) => g.id);
+    await _local.saveSkillGroups(next);
+    return _sorted(next, (g) => g.order);
+  }, 'Could not save the skill group');
+
+  @override
+  Future<DataResult<List<SkillGroupEntity>>> deleteSkillGroup(String id) =>
+      _guard(() async {
+        final next = _local.getSkillGroups().where((g) => g.id != id).toList();
+        await _local.saveSkillGroups(next);
+        return _sorted(next, (g) => g.order);
+      }, 'Could not delete the skill group');
+
+  @override
+  Future<DataResult<List<TechBadgeEntity>>> getTechBadges() => _guard(
+    () async => _sorted(_local.getTechBadges(), (b) => b.order),
+    'Could not read tech badges from local storage',
+  );
+
+  @override
+  Future<DataResult<List<TechBadgeEntity>>> upsertTechBadge(
+    TechBadgeEntity badge,
+  ) => _guard(() async {
+    final next = _upserted(_local.getTechBadges(), badge, (b) => b.id);
+    await _local.saveTechBadges(next);
+    return _sorted(next, (b) => b.order);
+  }, 'Could not save the tech badge');
+
+  @override
+  Future<DataResult<List<TechBadgeEntity>>> deleteTechBadge(String id) =>
+      _guard(() async {
+        final next = _local.getTechBadges().where((b) => b.id != id).toList();
+        await _local.saveTechBadges(next);
+        return _sorted(next, (b) => b.order);
+      }, 'Could not delete the tech badge');
+
+  // Section registry ----------------------------------------------------------
+
+  @override
+  Future<DataResult<List<SectionDefinition>>> getSections() => _guard(
+    () async => _sorted(_local.getSections(), (s) => s.order),
+    'Could not read the section list from local storage',
+  );
+
+  @override
+  Future<DataResult<List<SectionDefinition>>> saveSections(
+    List<SectionDefinition> sections,
+  ) => _guard(() async {
+    // Reorder hands us the intended visual order; renumber so `order` matches
+    // the list position rather than trusting whatever the caller set.
+    final renumbered = <SectionDefinition>[
+      for (var i = 0; i < sections.length; i++) sections[i].copyWith(order: i),
+    ];
+    await _local.saveSections(renumbered);
+    return renumbered;
+  }, 'Could not save the section list');
+
+  @override
+  Future<DataResult<List<SectionDefinition>>> upsertSection(
+    SectionDefinition section,
+  ) => _guard(() async {
+    final next = _upserted(_local.getSections(), section, (s) => s.id);
+    await _local.saveSections(next);
+    return _sorted(next, (s) => s.order);
+  }, 'Could not save the section');
+
+  @override
+  Future<DataResult<List<SectionDefinition>>> deleteCustomSection(String id) =>
+      _guard(() async {
+        final current = _local.getSections();
+        final matches = current.where((s) => s.id == id).toList();
+        if (matches.isEmpty) return _sorted(current, (s) => s.order);
+        if (!matches.first.isCustom) {
+          // Built-in sections are structural — hiding is the supported action.
+          throw StateError('Built-in section "$id" cannot be deleted');
+        }
+        final next = current.where((s) => s.id != id).toList();
+        await _local.saveSections(next);
+        await _local.deleteCustomItems(id);
+        return _sorted(next, (s) => s.order);
+      }, 'Could not delete the section');
+
+  // Custom section content ----------------------------------------------------
+
+  @override
+  Future<DataResult<List<CustomSectionItem>>> getCustomItems(
+    String sectionId,
+  ) => _guard(
+    () async => _sorted(_local.getCustomItems(sectionId), (i) => i.order),
+    'Could not read this section\'s items from local storage',
+  );
+
+  @override
+  Future<DataResult<List<CustomSectionItem>>> upsertCustomItem(
+    CustomSectionItem item,
+  ) => _guard(() async {
+    final next = _upserted(
+      _local.getCustomItems(item.sectionId),
+      item,
+      (i) => i.id,
+    );
+    await _local.saveCustomItems(item.sectionId, next);
+    return _sorted(next, (i) => i.order);
+  }, 'Could not save the item');
+
+  @override
+  Future<DataResult<List<CustomSectionItem>>> deleteCustomItem(
+    String sectionId,
+    String itemId,
+  ) => _guard(() async {
+    final next = _local
+        .getCustomItems(sectionId)
+        .where((i) => i.id != itemId)
+        .toList();
+    await _local.saveCustomItems(sectionId, next);
+    return _sorted(next, (i) => i.order);
+  }, 'Could not delete the item');
+
+  @override
+  Future<DataResult<void>> resetToSeed() =>
+      _guard(_local.resetToSeed, 'Could not restore the seeded content');
+}

@@ -1,0 +1,47 @@
+{
+  // Flutter launch configurations for marco_portfolio.
+  // Debug builds expose the content-management UI; release builds must not.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Web (debug) — admin visible",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "args": ["--web-port", "8080"]
+    },
+    {
+      "name": "Web (release) — verify no admin UI",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "flutterMode": "release",
+      "args": ["--web-port", "8081"]
+    },
+    {
+      "name": "Windows (debug) — image picker writes real assets",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "windows"
+    },
+    {
+      "name": "Android device (debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "android"
+    },
+    {
+      "name": "Profile (web) — animation performance",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "flutterMode": "profile",
+      "args": ["--web-port", "8082"]
+    }
+  ]
+}

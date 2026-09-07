@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "portfolio-web",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "chrome", "--web-port", "8080"],
+      "port": 8080
+    },
+    {
+      "name": "portfolio-web-release",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "chrome",
+        "--release",
+        "--web-port",
+        "8081"
+      ],
+      "port": 8081
+    },
+    {
+      "name": "portfolio-windows",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": ["run", "-d", "windows"]
+    }
+  ]
+}

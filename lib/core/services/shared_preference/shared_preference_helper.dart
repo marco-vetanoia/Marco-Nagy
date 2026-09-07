@@ -1,0 +1,47 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Thin singleton wrapper over [SharedPreferences]. Call
+/// [instantiatePreferences] once in `main` before `runApp`.
+class SharedPrefHelper {
+  factory SharedPrefHelper() => _instance;
+  SharedPrefHelper._internal();
+
+  static final SharedPrefHelper _instance = SharedPrefHelper._internal();
+
+  static SharedPreferences? _prefs;
+
+  Future<void> instantiatePreferences() async {
+    _prefs ??= await SharedPreferences.getInstance();
+  }
+
+  SharedPreferences get _requirePrefs {
+    final prefs = _prefs;
+    if (prefs == null) {
+      throw StateError(
+        'SharedPrefHelper used before instantiatePreferences() was awaited.',
+      );
+    }
+    return prefs;
+  }
+
+  bool containPreference({required String key}) =>
+      _requirePrefs.containsKey(key);
+
+  String? getString({required String key}) => _requirePrefs.getString(key);
+
+  Future<bool> setString({required String key, required String stringValue}) =>
+      _requirePrefs.setString(key, stringValue);
+
+  bool getBool({required String key}) => _requirePrefs.getBool(key) ?? false;
+
+  Future<bool> setBool({required String key, required bool value}) =>
+      _requirePrefs.setBool(key, value);
+
+  Future<bool> removePreference({required String key}) =>
+      _requirePrefs.remove(key);
+
+  /// Used to sweep every per-section custom-items key when a section is
+  /// deleted or the whole store is reset.
+  Set<String> keysWithPrefix(String prefix) =>
+      _requirePrefs.getKeys().where((key) => key.startsWith(prefix)).toSet();
+}

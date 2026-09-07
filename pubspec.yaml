@@ -1,0 +1,66 @@
+name: marco_portfolio
+description: "Marco Nagy Louka — Flutter Developer portfolio (mobile + web, self-contained, no backend)."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  bloc:
+  flutter_bloc:
+
+  # DI
+  get_it:
+  injectable:
+
+  # Brand logos ship as SVG, so they stay sharp at any badge size
+  flutter_svg:
+
+  # UI / responsiveness
+  flutter_screenutil:
+
+  # Local storage (the app's only persistence layer — no backend)
+  shared_preferences:
+
+  # External links: CV pdf, GitHub, LinkedIn, mailto
+  url_launcher:
+
+  # Debug-only image picking for admin forms
+  image_picker:
+
+  # Models
+  freezed_annotation:
+  json_annotation: ^4.12.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+  build_runner:
+  freezed:
+  json_serializable:
+  injectable_generator:
+  bloc_test:
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - translations/
+    - assets/cv/
+    - assets/content/
+    - assets/images/
+    - assets/projects/
+    - assets/tech/
