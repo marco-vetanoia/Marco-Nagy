@@ -24,6 +24,7 @@ class BlockRevealText extends StatefulWidget {
     this.maxLines,
     this.blockColor,
     this.delay = Duration.zero,
+    this.debugLabel,
     super.key,
   });
 
@@ -32,12 +33,17 @@ class BlockRevealText extends StatefulWidget {
   final TextAlign textAlign;
   final int? maxLines;
 
-  /// Defaults to the curtain's own colour, so a line wipe reads as the same
-  /// material as the page wipe that preceded it.
+  /// Defaults to the design system's soft accent (baby blue) — distinct from
+  /// the navy page curtain, so a line wipe reads as its own material rather
+  /// than a leftover scrap of the page transition.
   final Color? blockColor;
 
   /// Held before the wipe starts. Callers stagger *sections*, never lines.
   final Duration delay;
+
+  /// TEMPORARY: forwarded to [RevealTrigger]. Remove with it once the
+  /// "SectionDividerHeader never reveals" bug is found.
+  final String? debugLabel;
 
   @override
   State<BlockRevealText> createState() => _BlockRevealTextState();
@@ -71,6 +77,7 @@ class _BlockRevealTextState extends State<BlockRevealText>
     return RevealTrigger(
       delay: widget.delay,
       onReveal: _start,
+      debugLabel: widget.debugLabel,
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => _BlockRevealTextBox(
@@ -78,7 +85,7 @@ class _BlockRevealTextState extends State<BlockRevealText>
           textDirection: Directionality.of(context),
           textAlign: widget.textAlign,
           maxLines: widget.maxLines,
-          blockColor: widget.blockColor ?? context.colors.pageTop,
+          blockColor: widget.blockColor ?? context.colors.accentSoft,
           progress: _controller.value,
         ),
       ),
@@ -238,59 +245,82 @@ class _RenderBlockRevealText extends RenderBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     _layoutText(constraints.maxWidth);
-    _painter.paint(context.canvas, offset);
 
-    if (_progress >= 1) return;
+    // Fast paths for the two rest states. Both matter: idle is the state
+    // every not-yet-triggered line sits in — often for most of a page's
+    // lifetime — and skipping the clip there is not just an optimisation,
+    // it is what keeps a resting line from painting its glyphs at all.
+    if (_progress >= 1) {
+      _painter.paint(context.canvas, offset);
+      return;
+    }
+    if (_progress <= 0) return;
 
-    final paint = Paint()..color = _blockColor;
+    final blockPaint = Paint()..color = _blockColor;
     final isRtl = _painter.textDirection == TextDirection.rtl;
+    final revealed = Path();
 
     for (final line in _painter.computeLineMetrics()) {
       if (line.width <= 0) continue;
 
-      // The panel spans [from, to] of the line's own width. Covering pins the
-      // leading edge and grows; revealing pins the trailing edge and shrinks —
-      // the same two-phase move the page curtain makes, one line wide.
-      final double from;
-      final double to;
+      // `revealTo` is how much of the line, from its leading edge, is
+      // exposed; [blockFrom, blockTo] is the still-covered span the panel
+      // occupies. The two phases share one moving edge, so the panel and the
+      // reveal boundary can never separate:
+      //
+      // Covering (t < blockCoverFraction): nothing is exposed yet — the
+      // panel is purely a materialising cue, growing from the leading edge
+      // over a line that has no visible text either way.
+      //
+      // Revealing (t >= blockCoverFraction): the panel retreats from the
+      // leading edge, and text is exposed in exactly the space it vacates.
+      final double revealTo;
+      final double blockFrom;
+      final double blockTo;
       if (_progress < Motion.blockCoverFraction) {
         final t = Motion.curtainCurve.transform(
           _progress / Motion.blockCoverFraction,
         );
-        from = 0;
-        to = line.width * t;
+        revealTo = 0;
+        blockFrom = 0;
+        blockTo = line.width * t;
       } else {
         final t = Motion.curtainCurve.transform(
           (_progress - Motion.blockCoverFraction) /
               (1 - Motion.blockCoverFraction),
         );
-        from = line.width * t;
-        to = line.width;
+        revealTo = line.width * t;
+        blockFrom = revealTo;
+        blockTo = line.width;
       }
-      if (to <= from) continue;
 
-      // `line.left` is already the laid-out leading edge for the direction, so
-      // in Arabic the panel mirrors without a second code path.
+      // `line.left` is already the laid-out leading edge for the direction,
+      // so mirroring for Arabic is just measuring from the line's own right
+      // edge instead of its left — no separate RTL branch below this.
       final lineStart = offset.dx + line.left;
-      final Rect rect;
-      if (isRtl) {
-        final right = lineStart + line.width;
-        rect = Rect.fromLTRB(
-          right - to,
-          offset.dy + line.baseline - line.ascent,
-          right - from,
-          offset.dy + line.baseline + line.descent,
-        );
-      } else {
-        rect = Rect.fromLTRB(
-          lineStart + from,
-          offset.dy + line.baseline - line.ascent,
-          lineStart + to,
-          offset.dy + line.baseline + line.descent,
-        );
+      final top = offset.dy + line.baseline - line.ascent;
+      final bottom = offset.dy + line.baseline + line.descent;
+
+      Rect span(double from, double to) {
+        if (isRtl) {
+          final right = lineStart + line.width;
+          return Rect.fromLTRB(right - to, top, right - from, bottom);
+        }
+        return Rect.fromLTRB(lineStart + from, top, lineStart + to, bottom);
       }
-      context.canvas.drawRect(rect, paint);
+
+      if (revealTo > 0) revealed.addRect(span(0, revealTo));
+      if (blockTo > blockFrom) {
+        context.canvas.drawRect(span(blockFrom, blockTo), blockPaint);
+      }
     }
+
+    // Clipping to an empty path (pure covering phase, every line's revealTo
+    // is 0) hides the glyphs entirely — the panels above are all that shows.
+    context.canvas.save();
+    context.canvas.clipPath(revealed);
+    _painter.paint(context.canvas, offset);
+    context.canvas.restore();
   }
 
   @override

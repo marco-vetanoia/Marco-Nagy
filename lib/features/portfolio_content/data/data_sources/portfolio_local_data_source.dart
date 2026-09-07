@@ -19,6 +19,12 @@ abstract class PortfolioLocalDataSource {
   /// Discards local edits and restores the seeded content.
   Future<void> resetToSeed();
 
+  /// Serializes every collection into one JSON document, in the exact shape
+  /// `assets/content/portfolio_content.json` must have. Debug-only: feeds the
+  /// admin "Export content" action so a local editing session can be
+  /// published by saving the result over that asset file.
+  Future<String> exportContent();
+
   // Built-in section content.
 
   List<PersonalProject> getProjects();

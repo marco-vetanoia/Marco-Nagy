@@ -112,6 +112,11 @@ class LangKeys {
   static const String adminResetSeedConfirm = 'admin_reset_seed_confirm';
   static const String adminSaved = 'admin_saved';
   static const String adminDeleted = 'admin_deleted';
+  static const String adminExportContent = 'admin_export_content';
+  static const String adminExportDialogTitle = 'admin_export_dialog_title';
+  static const String adminExportInstructions = 'admin_export_instructions';
+  static const String adminExportCopy = 'admin_export_copy';
+  static const String adminExportCopied = 'admin_export_copied';
 
   static const String formAddProject = 'form_add_project';
   static const String formEditProject = 'form_edit_project';

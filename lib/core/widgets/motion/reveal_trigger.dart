@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'motion_durations.dart';
@@ -21,6 +22,7 @@ class RevealTrigger extends StatefulWidget {
     required this.child,
     required this.onReveal,
     this.delay = Duration.zero,
+    this.debugLabel,
     super.key,
   });
 
@@ -33,6 +35,10 @@ class RevealTrigger extends StatefulWidget {
   /// Held before [onReveal] fires. Callers stagger with this; it is added on
   /// top of the curtain beat, never instead of it.
   final Duration delay;
+
+  /// TEMPORARY: when set, prints a trace of every check this trigger makes.
+  /// Remove once the "SectionDividerHeader never reveals" bug is found.
+  final String? debugLabel;
 
   @override
   State<RevealTrigger> createState() => _RevealTriggerState();
@@ -76,7 +82,15 @@ class _RevealTriggerState extends State<RevealTrigger>
     if (!identical(routeAnimation, _routeAnimation)) {
       _routeAnimation?.removeListener(_onCurtain);
       _routeAnimation = routeAnimation;
-      if (!_fired && !_onScreen) _routeAnimation?.addListener(_onCurtain);
+      final attach = !_fired && !_onScreen;
+      if (attach) _routeAnimation?.addListener(_onCurtain);
+      if (widget.debugLabel != null && kDebugMode) {
+        debugPrint(
+          '[${widget.debugLabel}] didChangeDependencies: '
+          'routeAnimation=$routeAnimation value=${routeAnimation?.value} '
+          'onScreen=$_onScreen attachCurtainListener=$attach',
+        );
+      }
     }
   }
 
@@ -105,15 +119,33 @@ class _RevealTriggerState extends State<RevealTrigger>
   }
 
   void _check({bool afterCurtain = false}) {
-    if (_fired || !mounted || !_onScreen) return;
+    final label = widget.debugLabel;
+
+    if (_fired || !mounted || !_onScreen) {
+      if (label != null && kDebugMode) {
+        debugPrint(
+          '[$label] _check skipped: fired=$_fired mounted=$mounted '
+          'onScreen=$_onScreen afterCurtain=$afterCurtain',
+        );
+      }
+      return;
+    }
 
     if (Motion.reducedMotion(context)) {
+      if (label != null && kDebugMode) {
+        debugPrint('[$label] reducedMotion -> instant fire');
+      }
       _fire(instant: true);
       return;
     }
 
     final box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
+    if (box == null || !box.hasSize) {
+      if (label != null && kDebugMode) {
+        debugPrint('[$label] no box yet: box=$box hasSize=${box?.hasSize}');
+      }
+      return;
+    }
 
     // Nothing to scroll means nothing will ever bring this into view.
     final position = Scrollable.maybeOf(context)?.position;
@@ -123,18 +155,37 @@ class _RevealTriggerState extends State<RevealTrigger>
         position.maxScrollExtent <= 0;
 
     if (cannotScroll) {
+      if (label != null && kDebugMode) {
+        debugPrint(
+          '[$label] cannotScroll ($position, '
+          '${position?.hasContentDimensions}, ${position?.maxScrollExtent}) '
+          '-> fire',
+        );
+      }
       _fire(afterCurtain: afterCurtain);
       return;
     }
 
     final top = box.localToGlobal(Offset.zero).dy;
     final viewportHeight = MediaQuery.sizeOf(context).height;
-    if (top <= viewportHeight * Motion.revealThreshold) {
+    final inView = top <= viewportHeight * Motion.revealThreshold;
+    if (label != null && kDebugMode) {
+      debugPrint(
+        '[$label] top=$top viewportHeight=$viewportHeight '
+        'threshold=${viewportHeight * Motion.revealThreshold} inView=$inView',
+      );
+    }
+    if (inView) {
       _fire(afterCurtain: afterCurtain);
     }
   }
 
   Future<void> _fire({bool instant = false, bool afterCurtain = false}) async {
+    if (widget.debugLabel != null && kDebugMode) {
+      debugPrint(
+        '[${widget.debugLabel}] FIRE instant=$instant afterCurtain=$afterCurtain',
+      );
+    }
     _fired = true;
     // Detach immediately so later frames can't re-enter this path.
     _ticker?.removeListener(_check);

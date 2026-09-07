@@ -16,6 +16,7 @@ class RevealOnScroll extends StatefulWidget {
     required this.child,
     this.delay = Duration.zero,
     this.rise = Motion.riseDistance,
+    this.debugLabel,
     super.key,
   });
 
@@ -26,6 +27,10 @@ class RevealOnScroll extends StatefulWidget {
 
   /// How far the child travels upward while fading in.
   final double rise;
+
+  /// TEMPORARY: forwarded to [RevealTrigger]. Remove with it once the
+  /// "SectionDividerHeader never reveals" bug is found.
+  final String? debugLabel;
 
   @override
   State<RevealOnScroll> createState() => _RevealOnScrollState();
@@ -67,6 +72,7 @@ class _RevealOnScrollState extends State<RevealOnScroll>
     return RevealTrigger(
       delay: widget.delay,
       onReveal: _reveal,
+      debugLabel: widget.debugLabel,
       child: FadeTransition(
         opacity: _fade,
         child: AnimatedBuilder(

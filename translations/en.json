@@ -106,6 +106,11 @@
   "admin_reset_seed_confirm": "Discard all local edits and restore the original seeded content?",
   "admin_saved": "Saved",
   "admin_deleted": "Deleted",
+  "admin_export_content": "Export content",
+  "admin_export_dialog_title": "Exported content",
+  "admin_export_instructions": "Copy this and save it as assets/content/portfolio_content.json, then rebuild for release. It replaces the Dart seed constants on next launch.",
+  "admin_export_copy": "Copy to clipboard",
+  "admin_export_copied": "Copied to clipboard",
 
   "form_add_project": "Add project",
   "form_edit_project": "Edit project",

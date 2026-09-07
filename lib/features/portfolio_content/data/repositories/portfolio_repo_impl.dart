@@ -326,4 +326,8 @@ class PortfolioRepoImpl implements PortfolioRepo {
   @override
   Future<DataResult<void>> resetToSeed() =>
       _guard(_local.resetToSeed, 'Could not restore the seeded content');
+
+  @override
+  Future<DataResult<String>> exportContent() =>
+      _guard(_local.exportContent, 'Could not export content');
 }

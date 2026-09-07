@@ -106,6 +106,11 @@
   "admin_reset_seed_confirm": "هل تريد تجاهل كل التعديلات المحلية واستعادة المحتوى الأصلي؟",
   "admin_saved": "تم الحفظ",
   "admin_deleted": "تم الحذف",
+  "admin_export_content": "تصدير المحتوى",
+  "admin_export_dialog_title": "المحتوى المُصدَّر",
+  "admin_export_instructions": "انسخ هذا واحفظه في assets/content/portfolio_content.json ثم أعد البناء لإصدار الإنتاج. سيحل محل ثوابت Dart الأصلية في التشغيل التالي.",
+  "admin_export_copy": "نسخ إلى الحافظة",
+  "admin_export_copied": "تم النسخ إلى الحافظة",
 
   "form_add_project": "إضافة مشروع",
   "form_edit_project": "تعديل مشروع",

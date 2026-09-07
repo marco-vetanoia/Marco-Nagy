@@ -87,4 +87,9 @@ abstract class PortfolioRepo {
   );
 
   Future<DataResult<void>> resetToSeed();
+
+  /// Serializes every collection into the JSON document
+  /// `assets/content/portfolio_content.json` must contain, so a debug editing
+  /// session can be published by saving the result over that asset file.
+  Future<DataResult<String>> exportContent();
 }

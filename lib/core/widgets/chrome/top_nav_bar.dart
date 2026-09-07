@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../utils/extension/context_extensions.dart';
 import '../../utils/responsive/app_breakpoints.dart';
+import '../admin/admin_export_button.dart';
 import '../admin/admin_reset_button.dart';
 import 'language_toggle.dart';
 import 'monogram_logo.dart';
@@ -61,7 +62,8 @@ class TopNavBar extends StatelessWidget {
               ),
             ),
           SizedBox(width: 16.w),
-          // Debug-only: restore seeded content after experimenting.
+          // Debug-only: publish local edits, or restore seeded content.
+          const AdminExportButton(),
           const AdminResetButton(),
           const LanguageToggle(),
           SizedBox(width: 12.w),

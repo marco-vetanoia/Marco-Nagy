@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/services/shared_preference/shared_pref_keys.dart';
@@ -29,6 +30,11 @@ class PortfolioLocalDataSourceImpl implements PortfolioLocalDataSource {
 
   final SharedPrefHelper _prefs;
 
+  /// Author-maintained export of local content, checked into the repo so a
+  /// release build ships whatever was last exported from debug instead of
+  /// the bare Dart seed constants. Optional — see assets/content/README.md.
+  static const String _seedAssetPath = 'assets/content/portfolio_content.json';
+
   @override
   Future<void> seedIfEmpty() async {
     if (_prefs.getBool(key: SharedPrefKeys.seeded)) return;
@@ -45,16 +51,195 @@ class PortfolioLocalDataSourceImpl implements PortfolioLocalDataSource {
       await _prefs.removePreference(key: key);
     }
 
-    await saveProjects(SeedProjects.all);
-    await saveCertificates(SeedCertificates.all);
-    await saveWorkHistory(SeedWorkHistory.all);
-    await savePricingPackages(SeedPricing.packages);
-    await savePricingAddOns(SeedPricing.addOns);
-    await saveSiteContent(SeedSiteContent.value);
-    await saveSkillGroups(SeedSkills.groups);
-    await saveTechBadges(SeedSkills.techBadges);
-    await saveSections(SeedSections.all);
+    // Seeding priority: the exported JSON asset if one has been checked in,
+    // else the hand-written Dart seed constants below — see
+    // assets/content/README.md. A missing or malformed asset (the normal
+    // case before the first export) resolves to null here, and every
+    // `_seedList`/`_seedObject` call below falls back to its Dart constant.
+    final bundle = await _loadSeedAsset();
+
+    await saveProjects(
+      _seedList(bundle, 'projects', PersonalProject.fromJson, SeedProjects.all),
+    );
+    await saveCertificates(
+      _seedList(
+        bundle,
+        'certificates',
+        Certificate.fromJson,
+        SeedCertificates.all,
+      ),
+    );
+    await saveWorkHistory(
+      _seedList(
+        bundle,
+        'workHistory',
+        WorkHistoryEntry.fromJson,
+        SeedWorkHistory.all,
+      ),
+    );
+    await savePricingPackages(
+      _seedList(
+        bundle,
+        'pricingPackages',
+        PricingPackage.fromJson,
+        SeedPricing.packages,
+      ),
+    );
+    await savePricingAddOns(
+      _seedList(
+        bundle,
+        'pricingAddOns',
+        PricingAddOn.fromJson,
+        SeedPricing.addOns,
+      ),
+    );
+    await saveSiteContent(
+      _seedObject(
+        bundle,
+        'siteContent',
+        SiteContent.fromJson,
+        SeedSiteContent.value,
+      ),
+    );
+    await saveSkillGroups(
+      _seedList(
+        bundle,
+        'skillGroups',
+        SkillGroupEntity.fromJson,
+        SeedSkills.groups,
+      ),
+    );
+    await saveTechBadges(
+      _seedList(
+        bundle,
+        'techBadges',
+        TechBadgeEntity.fromJson,
+        SeedSkills.techBadges,
+      ),
+    );
+    await saveSections(
+      _seedList(
+        bundle,
+        'sections',
+        SectionDefinition.fromJson,
+        SeedSections.all,
+      ),
+    );
+
+    // Custom sections only exist in an exported bundle — there is no Dart
+    // constant for them, so an absent or non-map entry simply seeds none.
+    final customItems = bundle?['customItems'];
+    if (customItems is Map) {
+      for (final entry in customItems.entries) {
+        final rawItems = entry.value;
+        if (rawItems is! List) continue;
+        await saveCustomItems(
+          entry.key as String,
+          rawItems
+              .map(
+                (e) => CustomSectionItem.fromJson(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
+              .toList(growable: false),
+        );
+      }
+    }
+
     await _prefs.setBool(key: SharedPrefKeys.seeded, value: true);
+  }
+
+  @override
+  Future<String> exportContent() async {
+    final sections = getSections();
+    final customItems = <String, dynamic>{
+      for (final section in sections.where((s) => s.isCustom))
+        section.id: getCustomItems(
+          section.id,
+        ).map((item) => item.toJson()).toList(),
+    };
+
+    final bundle = <String, dynamic>{
+      'projects': getProjects().map((p) => p.toJson()).toList(),
+      'certificates': getCertificates().map((c) => c.toJson()).toList(),
+      'workHistory': getWorkHistory().map((e) => e.toJson()).toList(),
+      'pricingPackages': getPricingPackages().map((p) => p.toJson()).toList(),
+      'pricingAddOns': getPricingAddOns().map((a) => a.toJson()).toList(),
+      'siteContent': getSiteContent().toJson(),
+      'skillGroups': getSkillGroups().map((g) => g.toJson()).toList(),
+      'techBadges': getTechBadges().map((b) => b.toJson()).toList(),
+      'sections': sections.map((s) => s.toJson()).toList(),
+      'customItems': customItems,
+    };
+
+    // A picked-in-debug image is base64 in local storage, which would bloat a
+    // hand-maintained asset file with megabytes of pixel data. Strip it back
+    // to empty so the exported file only ever carries asset/network refs.
+    _stripEmbeddedImages(bundle);
+
+    return const JsonEncoder.withIndent('  ').convert(bundle);
+  }
+
+  // Seed-asset helpers ---------------------------------------------------------
+
+  Future<Map<String, dynamic>?> _loadSeedAsset() async {
+    try {
+      final raw = await rootBundle.loadString(_seedAssetPath);
+      return Map<String, dynamic>.from(json.decode(raw) as Map);
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Reads a list field out of an already-decoded seed bundle, the same
+  /// defensive way [_readList] reads one out of a shared_preferences string.
+  List<T> _seedList<T>(
+    Map<String, dynamic>? bundle,
+    String key,
+    T Function(Map<String, dynamic>) fromJson,
+    List<T> fallback,
+  ) {
+    final raw = bundle?[key];
+    if (raw is! List) return fallback;
+    try {
+      return raw
+          .map((e) => fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(growable: false);
+    } on Object {
+      return fallback;
+    }
+  }
+
+  T _seedObject<T>(
+    Map<String, dynamic>? bundle,
+    String key,
+    T Function(Map<String, dynamic>) fromJson,
+    T fallback,
+  ) {
+    final raw = bundle?[key];
+    if (raw is! Map) return fallback;
+    try {
+      return fromJson(Map<String, dynamic>.from(raw));
+    } on Object {
+      return fallback;
+    }
+  }
+
+  /// Recursively blanks any `ImageRef` serialized with
+  /// `kind: "embedded"` — see [ImageSourceKind.embedded].
+  void _stripEmbeddedImages(dynamic node) {
+    if (node is Map) {
+      if (node['kind'] == 'embedded') {
+        node['value'] = '';
+      }
+      for (final value in node.values) {
+        _stripEmbeddedImages(value);
+      }
+    } else if (node is List) {
+      for (final item in node) {
+        _stripEmbeddedImages(item);
+      }
+    }
   }
 
   // Shared JSON helpers -------------------------------------------------------

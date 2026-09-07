@@ -36,6 +36,7 @@ class SectionDividerHeader extends StatelessWidget {
                 // together would fade the title twice over.
                 Positioned.fill(
                   child: RevealOnScroll(
+                    debugLabel: 'ring:$title',
                     child: CustomPaint(
                       painter: WavyRingPainter(color: context.colors.accent),
                     ),
@@ -58,6 +59,7 @@ class SectionDividerHeader extends StatelessWidget {
           ),
           SizedBox(height: 20.h),
           RevealOnScroll(
+            debugLabel: 'chevron:$title',
             child: Icon(
               Icons.keyboard_arrow_down_rounded,
               size: 32.r,

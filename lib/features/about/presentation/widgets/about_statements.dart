@@ -29,6 +29,7 @@ class AboutStatements extends StatelessWidget {
         BlockRevealText(
           context.translate(LangKeys.aboutLead),
           style: MyFonts.bold28.copyWith(color: colors.accent),
+          debugLabel: 'aboutLead',
         ),
         SizedBox(height: 28.h),
         // Every statement shares one timeline: the reference wipes a whole
